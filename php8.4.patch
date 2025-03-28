@@ -1,0 +1,114 @@
+commit bd2710574363d638905cd2b737752ea065c38531
+Author: Andrija Vučinić <andrija.vucinic@gmail.com>
+Date:   Thu Nov 21 11:17:59 2024 +0100
+
+    PHP-CPP: PHP 8.4 support
+    
+    module.h - function signature changed
+    https://github.com/php/php-src/blob/91f0b3bc0416539f64c44d453100274ccae942b3/Zend/zend_API.c#L2582
+    
+    classimpl.cpp - doc_comment moved out of info.user
+    https://github.com/php/php-src/blob/91f0b3bc0416539f64c44d453100274ccae942b3/Zend/zend.h#L224
+    
+    iteratorimpl.(cpp|h) - valid now returns zend_result
+    https://github.com/php/php-src/blob/91f0b3bc0416539f64c44d453100274ccae942b3/Zend/zend_iterators.h#L39
+
+diff --git a/zend/classimpl.cpp b/zend/classimpl.cpp
+index 0541ec2..218426b 100644
+--- a/zend/classimpl.cpp
++++ b/zend/classimpl.cpp
+@@ -56,14 +56,22 @@ static ClassImpl *self(zend_class_entry *entry)
+      *  the string, in case PHP tries to read it) and after that the pointer
+      *  and we leave the doc_comment_len at 0.
+      */
++#if PHP_VERSION_ID < 80400
+     while (entry->parent && (entry->info.user.doc_comment == nullptr || ZSTR_LEN(entry->info.user.doc_comment) > 0))
++#else
++    while (entry->parent && (entry->doc_comment == nullptr || ZSTR_LEN(entry->doc_comment) > 0))
++#endif
+     {
+         // we did not create this class entry, but luckily we have a parent
+         entry = entry->parent;
+     }
+ 
+     // retrieve the comment (it has a pointer hidden in it to the ClassBase object)
++#if PHP_VERSION_ID < 80400
+     const char *comment = ZSTR_VAL(entry->info.user.doc_comment);
++#else
++    const char *comment = ZSTR_VAL(entry->doc_comment);
++#endif
+ 
+     // the first byte of the comment is an empty string (null character), but
+     // the next bytes contain a pointer to the ClassBase class
+@@ -1604,7 +1612,11 @@ zend_class_entry *ClassImpl::initialize(ClassBase *base, const std::string &pref
+     std::memcpy(ZSTR_VAL(_self) + 1, &impl, sizeof(impl));
+ 
+     // install the doc_comment
++#if PHP_VERSION_ID < 80400
+     _entry->info.user.doc_comment = _self;
++#else
++    _entry->doc_comment = _self;
++#endif
+ 
+     // declare all member variables
+     for (auto &member : _members) member->initialize(_entry);
+diff --git a/zend/iteratorimpl.cpp b/zend/iteratorimpl.cpp
+index bac23c9..b980651 100644
+--- a/zend/iteratorimpl.cpp
++++ b/zend/iteratorimpl.cpp
+@@ -68,7 +68,11 @@ void IteratorImpl::destructor(zend_object_iterator *iter)
+  *  @param  iter
+  *  @return int
+  */
++#if PHP_VERSION_ID < 80400
+ int IteratorImpl::valid(zend_object_iterator *iter)
++#else
++zend_result IteratorImpl::valid(zend_object_iterator *iter)
++#endif
+ {
+     // check if valid
+     return self(iter)->valid() ? SUCCESS : FAILURE;
+diff --git a/zend/iteratorimpl.h b/zend/iteratorimpl.h
+index 84c707a..fedddab 100644
+--- a/zend/iteratorimpl.h
++++ b/zend/iteratorimpl.h
+@@ -121,7 +121,11 @@ private:
+      *  @param  iter
+      *  @return int
+      */
++#if PHP_VERSION_ID < 80400
+     static int valid(zend_object_iterator *iter);
++#else
++    static zend_result valid(zend_object_iterator *iter);
++#endif
+ 
+     /**
+      *  Fetch the current item
+diff --git a/zend/module.h b/zend/module.h
+index 7902f8e..34d4aac 100644
+--- a/zend/module.h
++++ b/zend/module.h
+@@ -179,17 +179,23 @@ public:
+         // this is not possible if the module is invalid in the first place
+         if (!valid()) return false;
+         
++#if PHP_VERSION_ID < 80400
+         // the Zend engine sets a number of properties in the entry class, we do that here too
+         // note that it would be better to call zend_next_free_module() to find the next module
+         // number, but some users complain that this function is not always available
+         _entry->type = MODULE_TEMPORARY;
+         _entry->module_number = zend_hash_num_elements(&module_registry) + 1;
++#endif
+         _entry->handle = _handle;
+         
+         // @todo does loading an extension even work in a multi-threading setup?
+         
+         // register the module, this apparently returns a copied entry pointer
++#if PHP_VERSION_ID < 80400
+         auto *entry = zend_register_module_ex(_entry);
++#else
++        auto *entry = zend_register_module_ex(_entry, MODULE_TEMPORARY);
++#endif
+ 
+         // forget the entry, so that a new call to start() will fail too
+         _entry = nullptr;

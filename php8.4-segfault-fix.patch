@@ -1,0 +1,39 @@
+commit 46d2b80681c4448feb3e7a2c5460dd787931e2d8
+Author: Andrija Vučinić <andrija.vucinic@gmail.com>
+Date:   Fri Mar 28 11:30:48 2025 +0100
+
+    fix double-free segfaults
+    
+    Props @vnsavage
+
+diff --git a/zend/callable.cpp b/zend/callable.cpp
+index 20134b2..a1a684e 100644
+--- a/zend/callable.cpp
++++ b/zend/callable.cpp
+@@ -124,6 +124,10 @@ void Callable::initialize(zend_function_entry *entry, const char *classname, int
+     entry->arg_info = _argv.get();
+     entry->num_args = _argc;
+     entry->flags = flags;
++#if PHP_VERSION_ID >= 80400
++    entry->frameless_function_infos = nullptr;
++    entry->doc_comment = nullptr;
++#endif
+ 
+     // we should fill the first argument as well
+     initialize((zend_internal_function_info*)_argv.get(), classname);
+diff --git a/zend/classimpl.cpp b/zend/classimpl.cpp
+index 218426b..eafd0a5 100644
+--- a/zend/classimpl.cpp
++++ b/zend/classimpl.cpp
+@@ -23,8 +23,11 @@ ClassImpl::~ClassImpl()
+     // destruct the entries
+     delete[] _entries;
+ 
++    // PHP 8.4 frees doc_comment if not null, so skip.
++#if PHP_VERSION_ID < 80400
+     // free the stored pointer
+     if (_self) zend_string_release(_self);
++#endif
+ }
+ 
+ /**

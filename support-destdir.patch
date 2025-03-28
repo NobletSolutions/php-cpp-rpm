@@ -1,0 +1,26 @@
+--- Makefile.org	2025-03-03 21:54:02.876198351 -0700
++++ Makefile	2025-03-03 21:53:49.732415906 -0700
+@@ -38,8 +38,8 @@
+   INSTALL_PREFIX		=	/usr
+ endif
+ 
+-INSTALL_HEADERS			=	${INSTALL_PREFIX}/include
+-INSTALL_LIB				=	${INSTALL_PREFIX}/lib
++INSTALL_HEADERS			=	$(DESTDIR)${INSTALL_PREFIX}/include
++INSTALL_LIB				=	$(DESTDIR)${INSTALL_PREFIX}/lib
+ 
+ 
+ #
+@@ -216,8 +216,10 @@
+ 	${CP} include/*.h ${INSTALL_HEADERS}/phpcpp
+ 	if [ -e ${PHP_SHARED_LIBRARY} ]; then \
+ 		${CP} ${PHP_SHARED_LIBRARY} ${INSTALL_LIB}/; \
+-		${LN} ${PHP_SHARED_LIBRARY} ${INSTALL_LIB}/libphpcpp.so.$(SONAME); \
+-		${LN} ${PHP_SHARED_LIBRARY} ${INSTALL_LIB}/libphpcpp.so; \
++		cd $(INSTALL_LIB); \
++		${LN} ${PHP_SHARED_LIBRARY} libphpcpp.so.$(SONAME); \
++		${LN} ${PHP_SHARED_LIBRARY} libphpcpp.so; \
++		cd - ; \
+ 	fi
+ 	if [ -e ${PHP_STATIC_LIBRARY} ]; then ${CP} ${PHP_STATIC_LIBRARY} ${INSTALL_LIB}/; \
+ 		${LN} ${PHP_STATIC_LIBRARY} ${INSTALL_LIB}/libphpcpp.a; \
