@@ -1,21 +1,18 @@
-%global commit d4ef49aac412be3d3844ba338767d91ff54229de
+%global commit c083e812b740931bf1e72b1aeec1d27257a71ec0
 %global gittag GIT-TAG
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 %global source_date_epoch_from_changelog 0
 
 Name:           php-cpp
-Version:        2.4.8
+Version:        2.4.12
 Release:        1%{?dist}
 Summary:        PHP C++ bindings for modules
 
 Group:          Development/Libraries
 License:        Apache 2.0
 URL:            http://www.php-cpp.com/
-Source0:        PHP-CPP-v%{version}.tar.gz
+Source0:        PHP-CPP-%{version}.tar.gz
 Patch0:         support-destdir.patch 
-Patch1:         fix-memory-corruption.patch
-Patch2:         php8.4.patch
-Patch3:         php8.4-segfault-fix.patch
 
 BuildRequires:  php-devel automake
 Requires:       php(zend-abi) = %{php_zend_api}
@@ -35,9 +32,6 @@ PHP-CPP development files
 %prep
 %setup -q -n PHP-CPP-%{version}
 %patch -P 0 -p0
-%patch -P 1 -p1 
-%patch -P 2 -p1 
-%patch -P 3 -p1 
 
 %build
 make %{?_smp_mflags}
